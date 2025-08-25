@@ -8,7 +8,7 @@ import DetailAddMenu from '../../components/Detail_AddMenu';
 import DetailKeranjang from '../../components/DetailKeranjang';
 import { Link } from 'react-router-dom';
 
-const KeranjangPelanggan = () => {
+const ConfirmOrderPelanggan = () => {
 
 
     const [open, setOpen] = useState(false);
@@ -67,6 +67,9 @@ const KeranjangPelanggan = () => {
         setOpen(false);
     };
 
+    const totalHarga = selectedItem
+  .filter(item => item.countItem > 0)
+  .reduce((acc, item) => acc + (item.harga_menu * item.countItem), 0);
 
     return (
         <>
@@ -101,22 +104,27 @@ const KeranjangPelanggan = () => {
                         </div>
                     </div>
 
-                    {/* Tombol tetap di bawah */}
+                    {/* Bagian bawah */}
                     <div className="p-4 border-t bg-white">
-                        <Link to='/confirm-order-pelanggan'>
-                        <button
-                            onClick={() => addOrUpdateItem(detailMenu, countItem)}
-                            className="bg-[#E95322] text-white rounded-md px-5 py-2 shadow-md w-full"
-                        >
-                            Check Out
-                        </button>
+                        <div className="flex justify-between items-center mb-3">
+                            <span className="text-lg font-semibold">Total Harga:</span>
+                            <span className="text-lg font-bold text-[#E95322]">
+                                Rp. {totalHarga.toLocaleString('id-ID')}
+                            </span>
+                        </div>
+                        <Link to='/payment-pelanggan'>
+                            <button
+                                onClick={() => addOrUpdateItem(detailMenu, countItem)}
+                                className="bg-[#E95322] text-white rounded-md px-5 py-2 shadow-md w-full"
+                            >
+                                Place Order
+                            </button>
                         </Link>
                     </div>
                 </div>
             </div>
-
         </>
     )
 }
 
-export default KeranjangPelanggan
+export default ConfirmOrderPelanggan
