@@ -6,6 +6,8 @@ import MenuItem from '../../components/MenuItem';
 import { getMenu } from '../../services/api';
 import DetailAddMenu from '../../components/Detail_AddMenu';
 import { Link } from 'react-router-dom';
+import { FaShoppingBasket } from "react-icons/fa";
+
 
 const MenuPelanggan = () => {
 
@@ -14,7 +16,7 @@ const MenuPelanggan = () => {
 
     const [menu, setMenu] = useState([]);
     const [countItem, setCountItem] = useState(0)
-    const [selectedItem, setSelectedItem] = useState(() =>{
+    const [selectedItem, setSelectedItem] = useState(() => {
         const store = localStorage.getItem('selectedItem');
         return store ? JSON.parse(store) : [];
     });
@@ -27,11 +29,11 @@ const MenuPelanggan = () => {
         totalCount += item.countItem;
     });
 
-    useEffect(() =>{
+    useEffect(() => {
         localStorage.setItem('selectedItem', JSON.stringify(selectedItem));
     }, [selectedItem])
 
-    const addOrUpdateItem = async (newMenu, count) =>{
+    const addOrUpdateItem = async (newMenu, count) => {
         setSelectedItem((prevItems) => {
             const existingItem = prevItems.find((item) => item.id_menu === newMenu.id_menu);
             if (existingItem) {
@@ -48,7 +50,7 @@ const MenuPelanggan = () => {
         })
         onClose();
     }
-    
+
     useEffect(() => {
         const fetchMenu = async () => {
             try {
@@ -75,15 +77,20 @@ const MenuPelanggan = () => {
 
     return (
         <>
-            <div className='bg-[#F5CB58] p-2 flex flex-col justify-center items-center gap-2'>
+            <div className='bg-[#e67327] p-2 flex flex-col justify-center items-center gap-2'>
                 <Input placeholder="Cari Makanan..." prefix={<CiSearch />} />
 
-                <h3 className='text-white text-4xl' style={{ fontFamily: "'Lily Script One', cursive" }}>Homebro & Dapoer M.S</h3>
+                <h3
+                    className="text-white text-2xl sm:text-3xl md:text-4xl lg:text-5xl"
+                    style={{ fontFamily: "'Lily Script One', cursive" }}
+                >
+                    Homebro & Dapoer M.S
+                </h3>
 
             </div>
 
-            <div className='bg-[#F5CB58]'>
-                <div className=" px-4 bg-white  rounded-tr-2xl rounded-tl-2xl ">
+            <div className='bg-[#e67327]'>
+                <div className=" px-4 bg-white  rounded-tr-2xl rounded-tl-2xl pb-[60px]">
                     <div className="pt-4">
 
                         <div className='flex justify-between gap-2'>
@@ -127,7 +134,7 @@ const MenuPelanggan = () => {
                         <Divider className='bg-[#E95322]' />
 
                         <div>
-                            <h1 className='text-black text-2xl' style={{ fontFamily: "'Lily Script One', cursive" }}>Coffee & Espresso</h1>
+                            <h1 className='text-black text-2xl font-semibold'>Coffee & Espresso</h1>
                             <div className="grid grid-cols-1 gap-2 pt-2">
                                 {menu.map((item, index) => (
                                     <MenuItem
@@ -144,7 +151,7 @@ const MenuPelanggan = () => {
                         </div>
 
                         <div className='pt-4'>
-                            <h1 className='text-black text-2xl' style={{ fontFamily: "'Lily Script One', cursive" }}>Mie & Dimsum</h1>
+                            <h1 className='text-black text-2xl font-semibold'>Mie & Dimsum</h1>
                             <div className="flex flex-col gap-2 pt-2">
                                 {menu.map((item, index) => (
                                     <MenuItem
@@ -189,27 +196,20 @@ const MenuPelanggan = () => {
                 </div>
             </Drawer>
             <Link to="/keranjang-pelanggan">
-            
-            <FloatButton
-                icon={
-                    <Badge
-                        count={totalCount}
-                        size="small"
-                        color="#E95322"
-                        offset={[-2, 4]} // atur posisi angka
-                    >
-                        <CiShoppingCart size={26} className="text-[#E95322]" />
+                <div
+                    className="fixed bottom-0 left-0 right-0 bg-[#E95322] text-white px-4 py-3 flex justify-between items-center shadow-lg"
+                    style={{ borderTopLeftRadius: '16px', borderTopRightRadius: '16px' }}
+                >
+                    <Badge size="small" color="#fff">
+                        <FaShoppingBasket size={28} className="text-white" />
                     </Badge>
-                }
-                style={{
-                    right: 24,
-                    bottom: 24,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    backgroundColor: '#fff',
-                    borderRadius: '50%',
-                }}
-            />
+                    <span className="text-lg font-semibold">
+                        Keranjang Pesanan ({totalCount})
+                    </span>
+                </div>
             </Link>
+
+
         </>
     )
 }
