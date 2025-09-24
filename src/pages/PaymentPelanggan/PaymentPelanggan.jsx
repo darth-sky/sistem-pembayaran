@@ -8,8 +8,61 @@ import DetailAddMenu from '../../components/Detail_AddMenu';
 import DetailKeranjang from '../../components/DetailKeranjang';
 import { Link } from 'react-router-dom';
 import { FaChevronRight } from "react-icons/fa";
+import { FaChevronLeft } from "react-icons/fa";
+import { useNavigate } from 'react-router-dom';
+import { createOrder } from '../../services/api';
 
 const PaymentPelanggan = () => {
+
+    const navigate = useNavigate();
+
+    // 2. Buat handler untuk submit pesanan
+    const handlePlaceOrder = async () => {
+        // Validasi sederhana
+        if (selectedItem.length === 0) {
+            alert("Keranjang Anda kosong.");
+            return;
+        }
+        if (!ruangan) { // State 'ruangan' digunakan untuk nama
+            alert("Silakan isi nama Anda.");
+            return;
+        }
+        if (!paymentMethod) {
+            alert("Silakan pilih metode pembayaran.");
+            return;
+        }
+
+        // 3. Siapkan data sesuai format yang akan diterima backend
+        const orderDetails = {
+            fnb_type: activeButtonEatType === 1 ? 'Dine In' : 'Takeaway',
+            nama_guest: ruangan, // state 'ruangan' berisi nama pemesan
+            lokasi_pemesanan: activeButtonEatType === 1 ? nama : null, // state 'nama' berisi lokasi/tempat
+            metode_pembayaran: paymentMethod,
+            total_harga_final: totalHarga,
+            detail_order: selectedItem
+                .filter(item => item.countItem > 0) // <-- TAMBAHKAN BARIS INI
+                .map(item => ({
+                    id_produk: item.id_produk,
+                    jumlah: item.countItem,
+                    harga_saat_order: item.harga,
+                    catatan_pesanan: item.note || null
+                }))
+        };
+
+        try {
+            const result = await createOrder(orderDetails);
+            console.log('Order berhasil dibuat:', result);
+
+            // 4. Bersihkan keranjang di localStorage dan navigasi ke halaman sukses
+            localStorage.removeItem('selectedItem');
+            navigate('/transaksi-selesai', { state: { transactionData: result.datas } }); // Navigasi ke halaman sukses
+
+        } catch (error) {
+            alert(`Terjadi kesalahan: ${error.message}`);
+        }
+    };
+
+
 
     const [activeButtonEatType, setActiveButtonEatType] = useState(1);
 
@@ -43,7 +96,7 @@ const PaymentPelanggan = () => {
 
     const addOrUpdateItem = async (newMenu, count) => {
         setSelectedItem((prevItems) => {
-            const existingItem = prevItems.find((item) => item.id === newMenu.id);
+            const existingItem = prevItems.find((item) => item.id_produk === newMenu.id_produk);
             if (existingItem) {
                 const updatedItems = prevItems.map((item) =>
                     item.id === newMenu.id ? { ...item, countItem: item.countItem + count } : item
@@ -59,17 +112,17 @@ const PaymentPelanggan = () => {
         onClose();
     }
 
-    useEffect(() => {
-        const fetchMenu = async () => {
-            try {
-                const data = await getMenu();
-                setMenu(data.datas);
-            } catch (error) {
-                console.error(error);
-            }
-        };
-        fetchMenu();
-    }, [])
+    // useEffect(() => {
+    //     const fetchMenu = async () => {
+    //         try {
+    //             const data = await getMenu();
+    //             setMenu(data.datas);
+    //         } catch (error) {
+    //             console.error(error);
+    //         }
+    //     };
+    //     fetchMenu();
+    // }, [])
 
     const showDrawer = (menu) => {
         setDetailMenu(menu)
@@ -84,11 +137,12 @@ const PaymentPelanggan = () => {
 
     const totalHarga = selectedItem
         .filter(item => item.countItem > 0)
-        .reduce((acc, item) => acc + (item.harga_menu * item.countItem), 0);
+        .reduce((acc, item) => acc + (item.harga * item.countItem), 0);
+
 
     return (
         <>
-            <div className='bg-[#E95322] p-2 flex flex-col justify-center items-center gap-2'>
+            {/* <div className='bg-[#E95322] p-2 flex flex-col justify-center items-center gap-2'>
                 <h3
                     className="text-white text-2xl sm:text-3xl md:text-4xl lg:text-5xl"
                     style={{ fontFamily: "'Lily Script One', cursive" }}
@@ -96,10 +150,21 @@ const PaymentPelanggan = () => {
                     Homebro & Dapoer M.S
                 </h3>
 
-            </div>
+            </div> */}
 
-            <div className='bg-[#E95322]'>
-                <div className="px-4 bg-white rounded-tr-2xl rounded-tl-2xl h-[90vh] flex flex-col relative">
+            <div >
+                <div className="px-4 bg-white  h-[100vh] flex flex-col relative">
+                    <div className="flex items-center ">
+                        <button
+                            className="p-2 rounded-full hover:bg-gray-100 transition"
+                            onClick={() => window.history.back()}
+                        >
+                            <FaChevronLeft className="text-gray-700 text-xl" />
+                        </button>
+                        <h1 className="text-lg font-semibold text-gray-900">
+                            Confirm Order
+                        </h1>
+                    </div>
                     <div className='flex justify-evenly pb-3'>
                         <div className='flex flex-col items-center space-y-2'>
                             <img
@@ -111,7 +176,7 @@ const PaymentPelanggan = () => {
                             <button
                                 onClick={() => setActiveButtonEatType(1)}
                                 className={`text-sm w-24 h-9 flex items-center justify-center rounded-4xl shadow-md hover:scale-110 transition-transform 
-        ${activeButtonEatType === 1 ? "bg-[#E95322] text-white" : "bg-white text-black border-2 border-[#E95322]"}`
+        ${activeButtonEatType === 1 ? "bg-testPrimary text-white" : "bg-white text-black border-2 border-testPrimary"}`
                                 }
                             >
                                 Dine In <FaChevronRight />
@@ -130,7 +195,7 @@ const PaymentPelanggan = () => {
                             <button
                                 onClick={() => setActiveButtonEatType(2)}
                                 className={`text-sm w-24 h-9 flex items-center justify-center rounded-4xl shadow-md hover:scale-110 transition-transform 
-        ${activeButtonEatType === 2 ? "bg-[#E95322] text-white" : "bg-white text-black border-2 border-[#E95322]"}`
+        ${activeButtonEatType === 2 ? "bg-testPrimary text-white" : "bg-white text-black border-2 border-testPrimary"}`
                                 }
                             >
                                 Take Away <FaChevronRight />
@@ -138,7 +203,7 @@ const PaymentPelanggan = () => {
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto max-h-[calc(90vh-320px)] pr-2">
+                    <div className="flex-1 overflow-y-auto max-h-[calc(100vh-320px)] pr-2">
 
                         <div>
                             <label className="font-bold block mb-1">Nama</label>
@@ -180,7 +245,7 @@ const PaymentPelanggan = () => {
                                 >
                                     <div>
                                         <p className="font-semibold text-gray-800 text-base">
-                                            {item.nama_menu}
+                                            {item.nama_produk}
                                             <span className="ml-1 text-xs text-white bg-red-500 rounded-full px-2 py-0.5">
                                                 {item.countItem}
                                             </span>
@@ -192,7 +257,7 @@ const PaymentPelanggan = () => {
                                         )}
                                     </div>
                                     <p className="text-lg font-bold text-gray-800">
-                                        Rp {parseInt(item.harga_menu * item.countItem).toLocaleString('id-ID')}
+                                        Rp {parseInt(item.harga * item.countItem).toLocaleString('id-ID')}
                                     </p>
                                 </div>
                             ))}
@@ -235,18 +300,16 @@ const PaymentPelanggan = () => {
                     <div className="p-4 border-t bg-white absolute bottom-0 w-[92%]">
                         <div className="flex justify-between items-center mb-3">
                             <span className="text-lg font-semibold">Total Harga:</span>
-                            <span className="text-lg font-bold text-[#E95322]">
+                            <span className="text-lg font-bold text-testPrimary">
                                 Rp. {totalHarga.toLocaleString('id-ID')}
                             </span>
                         </div>
-                        <Link to='/payment-pelanggan'>
-                            <button
-                                onClick={() => addOrUpdateItem(detailMenu, countItem)}
-                                className="bg-[#E95322] text-white rounded-md px-5 py-2 shadow-md w-full"
-                            >
-                                Place Order
-                            </button>
-                        </Link>
+                        <button
+                            onClick={handlePlaceOrder} // Ganti onClick ke handler yang benar
+                            className="bg-testPrimary text-white rounded-md px-5 py-2 shadow-md w-full"
+                        >
+                            Place Order
+                        </button>
                     </div>
 
                 </div>

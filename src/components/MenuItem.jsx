@@ -21,13 +21,13 @@ export default function MenuItem({ image, name, description, price, showDrawer }
       <div className="flex-1 px-3">
         <h3 className="text-sm font-semibold text-gray-800">{name}</h3>
         <p className="text-xs text-gray-500 mt-1">{description}</p>
-        <p className="text-[#E95322] font-bold text-sm mt-1">{formattedPrice}</p>
+        <p className="text-testPrimary font-bold text-sm mt-1">{formattedPrice}</p>
       </div>
 
       {/* Tombol Tambah */}
       <button
         onClick={showDrawer}
-        className="bg-[#E95322] text-white font-bold text-lg w-8 h-8 flex items-center justify-center rounded-md shadow-md hover:scale-110 transition-transform"
+        className="bg-testPrimary text-white font-bold text-lg w-8 h-8 flex items-center justify-center rounded-md shadow-md hover:scale-110 transition-transform"
       >
         +
       </button>

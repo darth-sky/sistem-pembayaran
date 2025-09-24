@@ -5,15 +5,16 @@ import KeranjangPelanggan from './pages/KeranjangPelanggan/KeranjangPelanggan'
 import ConfirmOrderPelanggan from './pages/ConfirmOrderPelanggan/ConfirmOrderPelanggan'
 import PaymentPelanggan from './pages/PaymentPelanggan/PaymentPelanggan'
 import CobaMenuPelanggans from './pages/CobaPelanggans/CobaPelanggans'
+import TransaksiDone from './pages/TransaksiDone/TransaksiDone'
 
 
 const App = () => {
   return (
     <Routes>
-      <Route path='/coba-pelanggan' element={<CobaMenuPelanggans/>}/>
+      {/* <Route path='/coba-pelanggan' element={<CobaMenuPelanggans/>}/> */}
       
       {/* PELANGGAN */}
-      <Route path='/' element={<MenuPelanggan/>}/>
+      <Route path='/' element={<CobaMenuPelanggans/>}/>
 
       <Route path='/admin' element={<MenuPelanggan/>}/>
 
@@ -22,6 +23,8 @@ const App = () => {
       <Route path='/confirm-order-pelanggan' element={<ConfirmOrderPelanggan/>}/>
 
       <Route path='/payment-pelanggan' element={<PaymentPelanggan/>}/>
+
+      <Route path='/transaksi-selesai' element={<TransaksiDone/>}/>
 
     </Routes>
   )

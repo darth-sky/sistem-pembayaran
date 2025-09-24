@@ -23,7 +23,7 @@ const CobaMenuPelanggans = () => {
     });
     const [detailMenu, setDetailMenu] = useState({});
     const [openCart, setOpenCart] = useState(false);
-    const [selectedMerchant, setSelectedMerchant] = useState(1); // default Homebro
+    const [selectedMerchant, setSelectedMerchant] = useState(3); // default Homebro
     const [showSearch, setShowSearch] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -36,14 +36,15 @@ const CobaMenuPelanggans = () => {
 
 
     const loadHomebro = () => {
-        setSelectedMerchant(1);
-        fetchKategoriByMerchant(1);
+        setSelectedMerchant(3); // sesuai id_tenant Homebro
+        fetchKategoriByMerchant(3);
     };
 
     const loadDapoer = () => {
-        setSelectedMerchant(2);
-        fetchKategoriByMerchant(2);
+        setSelectedMerchant(4); // sesuai id_tenant Dapoer
+        fetchKategoriByMerchant(4);
     };
+
 
     const fetchKategoriByMerchant = async (idMerchant) => {
         try {
@@ -72,8 +73,11 @@ const CobaMenuPelanggans = () => {
     }, [selectedItem]);
 
     useEffect(() => {
-        fetchKategoriByMerchant(1);
-    }, []);
+        if (selectedMerchant) {
+            fetchKategoriByMerchant(selectedMerchant);
+        }
+    }, [selectedMerchant]);
+
 
     // Scroll vertikal ke section menu saat klik kategori
     useEffect(() => {
@@ -124,20 +128,20 @@ const CobaMenuPelanggans = () => {
 
     const addOrUpdateItem = (newMenu, count, note) => {
         setSelectedItem(prevItems => {
-            const existingItem = prevItems.find(item => item.id_menu === newMenu.id_menu);
+            const existingItem = prevItems.find(item => item.id_produk === newMenu.id_produk);
             if (existingItem) {
                 return prevItems.map(item =>
-                    item.id_menu === newMenu.id_menu
+                    item.id_produk === newMenu.id_produk
                         ? { ...item, countItem: item.countItem + count, note }
                         : item
                 );
             } else {
                 return [...prevItems, { ...newMenu, countItem: count, note: note || "" }];
-
             }
         });
         onClose();
     };
+
 
 
 
@@ -156,19 +160,10 @@ const CobaMenuPelanggans = () => {
 
     return (
         <>
-            {/* Header */}
-            <div className='bg-[#e67327] p-2 flex flex-col justify-center items-center gap-2'>
-                <h3
-                    className="text-white text-2xl sm:text-3xl md:text-4xl lg:text-5xl"
-                    style={{ fontFamily: "'Lily Script One', cursive" }}
-                >
-                    Homebro & Dapoer M.S
-                </h3>
-            </div>
 
             {/* Kategori Navbar */}
-            <div className='bg-[#e67327]'>
-                <div className="px-4 bg-white rounded-tr-2xl rounded-tl-2xl pb-[60px]">
+            <div >
+                <div className="px-4 bg-white  pb-[60px]">
                     <div className="pt-4">
                         {/* Logo Merchant */}
                         <div className='flex justify-evenly pb-3'>
@@ -181,9 +176,9 @@ const CobaMenuPelanggans = () => {
                                 />
                                 <button
                                     onClick={loadHomebro}
-                                    className={`${selectedMerchant === 1
-                                        ? "bg-[#E95322] text-black"
-                                        : "bg-white text-black border-2 border-[#E95322]"
+                                    className={`${selectedMerchant === 3
+                                        ? "bg-testPrimary text-black"
+                                        : "bg-white text-black border-2 border-testPrimary"
                                         } text-sm w-24 h-9 flex items-center justify-center rounded-4xl shadow-md hover:scale-110 transition-transform`}
                                 >
                                     View Menu <FaChevronRight />
@@ -198,9 +193,9 @@ const CobaMenuPelanggans = () => {
                                 />
                                 <button
                                     onClick={loadDapoer}
-                                    className={`${selectedMerchant === 2
-                                        ? "bg-[#E95322] text-black"
-                                        : "bg-white text-black border-2 border-[#E95322]"
+                                    className={`${selectedMerchant === 4
+                                        ? "bg-testPrimary text-black"
+                                        : "bg-white text-black border-2 border-testPrimary"
                                         } text-sm w-24 h-9 flex items-center justify-center rounded-4xl shadow-md hover:scale-110 transition-transform`}
                                 >
                                     View Menu <FaChevronRight />
@@ -236,7 +231,7 @@ const CobaMenuPelanggans = () => {
                                             ref={el => kategoriNavRefs.current[kat.id_kategori] = el}
                                             className={`flex flex-col justify-center items-center cursor-pointer whitespace-nowrap pb-0
                                                     ${activeKategori === kat.id_kategori
-                                                    ? 'text-[#E95322] border-b-2 '
+                                                    ? 'text-testPrimary border-b-2 '
                                                     : 'text-black'}`}
                                             onClick={() => {
                                                 isClickScrolling.current = true;
@@ -262,18 +257,19 @@ const CobaMenuPelanggans = () => {
                                     <div className="grid grid-cols-1 gap-2 pt-2">
                                         {menuByKategori[kat.id_kategori]
                                             ?.filter(item =>
-                                                item.nama_menu.toLowerCase().includes(searchTerm.toLowerCase())
+                                                (item?.nama_produk || "").toLowerCase().includes(searchTerm.toLowerCase())
                                             )
                                             .map((item, index) => (
                                                 <MenuItem
                                                     key={index}
-                                                    image={item.foto_menu}
-                                                    name={item.nama_menu}
-                                                    description={item.deskripsi}
-                                                    price={item.harga_menu}
+                                                    image={item.foto_produk}
+                                                    name={item.nama_produk}
+                                                    description={item.deskripsi_produk}
+                                                    price={item.harga}
                                                     showDrawer={() => showDrawer(item)}
                                                 />
                                             ))}
+
                                     </div>
                                 </div>
                             ))}
@@ -292,11 +288,11 @@ const CobaMenuPelanggans = () => {
                 Style={{ body: { paddingBottom: 80 } }}
             >
                 <DetailAddMenu
-                    key={detailMenu.id}
-                    image={detailMenu.foto_menu}
-                    name={detailMenu.nama_menu}
-                    description={detailMenu.deskripsi}
-                    price={detailMenu.harga_menu}
+                    key={detailMenu.id_produk}
+                    image={detailMenu.foto_produk}
+                    name={detailMenu.nama_produk}
+                    description={detailMenu.deskripsi_produk}
+                    price={detailMenu.harga}
                     countItem={countItem}
                     setCountItem={setCountItem}
                     note={note}
@@ -307,7 +303,7 @@ const CobaMenuPelanggans = () => {
                 <div className="fixed bottom-4 right-6">
                     <button
                         onClick={() => addOrUpdateItem(detailMenu, countItem, note)}
-                        className="bg-[#E95322] text-white rounded-md px-5 py-2 shadow-md"
+                        className="bg-testPrimary text-white rounded-md px-5 py-2 shadow-md"
                     >
                         Tambahkan
                     </button>
@@ -318,7 +314,7 @@ const CobaMenuPelanggans = () => {
 
             {/* Footer Keranjang */}
             <div
-                className="fixed bottom-0 left-0 right-0 bg-[#E95322] text-white px-4 py-3 flex justify-between items-center shadow-lg"
+                className="fixed bottom-0 left-0 right-0 bg-testPrimary text-white px-4 py-3 flex justify-between items-center shadow-lg"
                 style={{ borderTopLeftRadius: '16px', borderTopRightRadius: '16px' }}
                 onClick={() => setOpenCart(true)}
             >
@@ -351,14 +347,14 @@ const CobaMenuPelanggans = () => {
                                 {selectedItem.filter(item => item.countItem > 0).map((item, index) => (
                                     <DetailKeranjang
                                         key={index}
-                                        image={item.foto_menu}
-                                        name={item.nama_menu}
-                                        description={item.deskripsi}
-                                        price={item.harga_menu}
+                                        image={item.foto_produk}
+                                        name={item.nama_produk}
+                                        description={item.deskripsi_produk}
+                                        price={item.harga}
                                         countItem={item.countItem}
                                         note={item.note}
                                         setSelectedItem={setSelectedItem}
-                                        id={item.id_menu}
+                                        id={item.id_produk}
                                     />
 
 
@@ -370,8 +366,8 @@ const CobaMenuPelanggans = () => {
                         <div className="p-2 border-t bg-white sticky bottom-0">
                             <Link to="/confirm-order-pelanggan">
                                 <button
-                                    onClick={() => addOrUpdateItem(detailMenu, countItem)}
-                                    className="bg-[#E95322] text-white rounded-md px-5 py-2 shadow-md w-full"
+                                    // onClick={() => addOrUpdateItem(detailMenu, countItem)}
+                                    className="bg-testPrimary text-white rounded-md px-5 py-2 shadow-md w-full"
                                 >
                                     Check Out
                                 </button>

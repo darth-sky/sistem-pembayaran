@@ -9,7 +9,7 @@ export default function DetailKeranjang({ image, name, description, price, setSe
 
     const counterJumlahItem = (mode) => {
         setSelectedItem(prevItems => prevItems.map(item =>
-            item.id_menu === id
+            item.id_produk === id
                 ? { ...item, countItem: mode === "+" ? item.countItem + 1 : Math.max(0, item.countItem - 1) }
                 : item
         ));
@@ -27,16 +27,16 @@ export default function DetailKeranjang({ image, name, description, price, setSe
                 <div className="flex-1 px-3">
                     <h3 className="text-sm font-semibold text-gray-800">{name}</h3>
                     <p className="text-xs text-gray-500 mt-1">{description}</p>
-                    <p className="text-[#E95322] font-bold text-sm mt-1">{formattedPrice}</p>
+                    <p className="text-testPrimary font-bold text-sm mt-1">{formattedPrice}</p>
                 </div>
 
                 {/* Counter */}
                 <div className="flex justify-center items-center gap-2">
-                    <button onClick={() => counterJumlahItem("-")} className="bg-white text-[#E95322] font-bold text-lg w-8 h-8 flex items-center justify-center rounded-md shadow-md hover:scale-110 transition-transform">
+                    <button onClick={() => counterJumlahItem("-")} className="bg-white text-testPrimary font-bold text-lg w-8 h-8 flex items-center justify-center rounded-md shadow-md hover:scale-110 transition-transform">
                         -
                     </button>
                     <p>{countItem}</p>
-                    <button onClick={() => counterJumlahItem("+")} className="bg-[#E95322] text-white font-bold text-lg w-8 h-8 flex items-center justify-center rounded-md shadow-md hover:scale-110 transition-transform">
+                    <button onClick={() => counterJumlahItem("+")} className="bg-testPrimary text-white font-bold text-lg w-8 h-8 flex items-center justify-center rounded-md shadow-md hover:scale-110 transition-transform">
                         +
                     </button>
                 </div>
@@ -49,7 +49,7 @@ export default function DetailKeranjang({ image, name, description, price, setSe
                     value={note}
                     onChange={(e) => setSelectedItem(prevItems =>
                         prevItems.map(item =>
-                            item.id_menu === id ? { ...item, note: e.target.value } : item
+                            item.id_produk === id ? { ...item, note: e.target.value } : item
                         )
                     )}
                     placeholder="Edit catatan"
