@@ -11,7 +11,7 @@ export default function MenuItem({ image, name, description, price, showDrawer }
       {/* Gambar Menu */}
       <div className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden">
         <img
-          src={`./img/${image}`}
+          src={`http://172.16.82.255:5000/static/${image}`}
           alt={name}
           className="w-full h-full object-cover"
         />

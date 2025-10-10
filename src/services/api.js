@@ -1,4 +1,4 @@
-const api_url = 'http://127.0.0.1:5000/api/v1/'
+const api_url = 'http://172.16.82.255:5000/api/v1/'
 const api_url_localhost = 'http://localhost:5000/api/v1/'
 
 export const getMenu = async () => {

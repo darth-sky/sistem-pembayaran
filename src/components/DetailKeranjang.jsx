@@ -20,7 +20,7 @@ export default function DetailKeranjang({ image, name, description, price, setSe
             <div className="flex items-center justify-between">
                 {/* Gambar */}
                 <div className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden">
-                    <img src={`./img/${image}`} alt={name} className="w-full h-full object-cover" />
+                    <img src={`http://172.16.82.255:5000/static/${image}`} alt={name} className="w-full h-full object-cover" />
                 </div>
 
                 {/* Info */}

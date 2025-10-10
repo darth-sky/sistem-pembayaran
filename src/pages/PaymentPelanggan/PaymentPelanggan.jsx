@@ -40,9 +40,10 @@ const PaymentPelanggan = () => {
             metode_pembayaran: paymentMethod,
             total_harga_final: totalHarga,
             detail_order: selectedItem
-                .filter(item => item.countItem > 0) // <-- TAMBAHKAN BARIS INI
+                .filter(item => item.countItem > 0)
                 .map(item => ({
                     id_produk: item.id_produk,
+                    nama_produk: item.nama_produk, // <-- TAMBAHKAN KEMBALI BARIS INI
                     jumlah: item.countItem,
                     harga_saat_order: item.harga,
                     catatan_pesanan: item.note || null
@@ -52,6 +53,9 @@ const PaymentPelanggan = () => {
         try {
             const result = await createOrder(orderDetails);
             console.log('Order berhasil dibuat:', result);
+
+            // TAMBAHKAN BARIS INI UNTUK MELIHAT DATA ASLI DARI SERVER
+            console.log('DATA DARI SERVER (result.datas):', result.datas);
 
             // 4. Bersihkan keranjang di localStorage dan navigasi ke halaman sukses
             localStorage.removeItem('selectedItem');
