@@ -1,4 +1,4 @@
-const api_url = 'http://172.16.82.255:5000/api/v1/'
+const api_url = `${import.meta.env.VITE_BASE_URL}/api/v1/`
 const api_url_localhost = 'http://localhost:5000/api/v1/'
 
 export const getMenu = async () => {
@@ -10,6 +10,17 @@ export const getMenu = async () => {
         throw error
     }
 }
+
+
+export const getTenants = async () => {
+    try {
+        const response = await fetch(api_url + `produk/tenants`);
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        throw error;
+    }
+};
 
 
 
