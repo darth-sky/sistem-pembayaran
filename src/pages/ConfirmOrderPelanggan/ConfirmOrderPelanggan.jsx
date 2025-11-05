@@ -1,122 +1,76 @@
-import React, { useEffect, useState } from 'react'
-import { CiSearch, CiShoppingCart } from 'react-icons/ci'
-import { Divider, Input, Drawer, FloatButton, Badge } from 'antd';
-import MenuCard from '../../components/MenuItem';
-import MenuItem from '../../components/MenuItem';
-import { getMenu } from '../../services/api';
-import DetailAddMenu from '../../components/Detail_AddMenu';
+import React, { useEffect, useState } from 'react';
 import DetailKeranjang from '../../components/DetailKeranjang';
 import { FaChevronLeft } from "react-icons/fa";
 import { Link } from 'react-router-dom';
+import { getFnbTaxRate } from '../../services/api'; // <<<--- IMPORT SERVICE BARU
 
 const ConfirmOrderPelanggan = () => {
-
-
-    const [open, setOpen] = useState(false);
-
-    const [menu, setMenu] = useState([]);
-    const [countItem, setCountItem] = useState(0)
     const [selectedItem, setSelectedItem] = useState(() => {
         const store = localStorage.getItem('selectedItem');
         return store ? JSON.parse(store) : [];
     });
 
-    const [detailMenu, setDetailMenu] = useState({})
+    // --- STATE BARU UNTUK PAJAK ---
+    const [pajakPersen, setPajakPersen] = useState(0); // Default 0%
+    const [isLoadingTax, setIsLoadingTax] = useState(true); // State loading
 
+    // --- FETCH PAJAK SAAT KOMPONEN DIMUAT ---
+    useEffect(() => {
+        const fetchTax = async () => {
+            setIsLoadingTax(true);
+            const rate = await getFnbTaxRate();
+            setPajakPersen(rate);
+            setIsLoadingTax(false);
+        };
+        fetchTax();
+    }, []); // Dependency kosong, hanya dijalankan sekali
+
+    // Update localStorage
     useEffect(() => {
         localStorage.setItem('selectedItem', JSON.stringify(selectedItem));
-    }, [selectedItem])
+    }, [selectedItem]);
 
-    const addOrUpdateItem = async (newMenu, count) => {
-        setSelectedItem((prevItems) => {
-            const existingItem = prevItems.find((item) => item.id_produk === newMenu.id_produk);
-            if (existingItem) {
-                const updatedItems = prevItems.map((item) =>
-                    item.id_produk === newMenu.id_produk
-                        ? {
-                            ...item,
-                            countItem: item.countItem + count,
-                            note: newMenu.note !== undefined ? newMenu.note : item.note || ""
-                        }
-                        : item
-                );
-                localStorage.setItem("selectedItem", JSON.stringify(updatedItems));
-                return updatedItems;
-            } else {
-                const updatedItems = [
-                    ...prevItems,
-                    {
-                        ...newMenu,
-                        countItem: count,
-                        note: newMenu.note !== undefined ? newMenu.note : ""
-                    }
-                ];
-                localStorage.setItem("selectedItem", JSON.stringify(updatedItems));
-                return updatedItems;
-            }
-        });
-        onClose();
-    };
-
-
-
-    // useEffect(() => {
-    //     const fetchMenu = async () => {
-    //         try {
-    //             const data = await getMenu();
-    //             setMenu(data.datas);
-    //         } catch (error) {
-    //             console.error(error);
-    //         }
-    //     };
-    //     fetchMenu();
-    // }, [])
-
-    const showDrawer = (menu) => {
-        setDetailMenu(menu)
-        console.log({ detailMenunya: menu });
-
-        setOpen(true);
-    };
-    const onClose = () => {
-        setCountItem(0)
-        setOpen(false);
-    };
-
-    const totalHarga = selectedItem
+    // --- PERHITUNGAN HARGA DENGAN PAJAK DARI STATE ---
+    const subtotal = selectedItem
         .filter(item => item.countItem > 0)
-        .reduce((acc, item) => acc + (item.harga * item.countItem), 0);
+        .reduce((acc, item) => {
+            const hargaItem = parseFloat(item.harga) || 0;
+            const jumlahItem = parseInt(item.countItem) || 0;
+            return acc + (hargaItem * jumlahItem);
+        }, 0);
+
+    // Gunakan state pajakPersen di sini
+    const pajakNominal = subtotal * (pajakPersen / 100);
+    const totalHargaFinal = subtotal + pajakNominal;
+    // --- AKHIR PERHITUNGAN HARGA ---
+
+    // Helper format Rupiah (opsional, bisa dipindah ke utils)
+    const formatRupiah = (number) => {
+         const num = parseFloat(number);
+         if (isNaN(num)) return 'Rp 0';
+         return `Rp ${num.toLocaleString('id-ID')}`;
+    };
+
     return (
         <>
-            {/* <div className='bg-[#E95322] p-2 flex flex-col justify-center items-center gap-2'>
-
-
-                <h3
-                    className="text-white text-2xl sm:text-3xl md:text-4xl lg:text-5xl"
-                    style={{ fontFamily: "'Lily Script One', cursive" }}
-                >
-                    Homebro & Dapoer M.S
-                </h3>
-
-            </div> */}
-
-            <div >
-                <div className="px-4 bg-white  h-[100vh] flex flex-col">
+            <div>
+                <div className="px-4 bg-white h-[100vh] flex flex-col">
                     {/* Konten scrollable */}
-                    <div className="pt-4 flex-1 overflow-y-auto">
-                        <div className="flex items-center ">
+                    <div className="pt-4 flex-1 overflow-y-auto pb-4">
+                        <div className="flex items-center mb-4">
                             <button
                                 className="p-2 rounded-full hover:bg-gray-100 transition"
                                 onClick={() => window.history.back()}
                             >
                                 <FaChevronLeft className="text-gray-700 text-xl" />
                             </button>
-                            <h1 className="text-lg font-semibold text-gray-900">
-                                Confirm Order
+                            <h1 className="text-xl font-bold text-gray-900 ml-2">
+                                Konfirmasi Pesanan
                             </h1>
                         </div>
 
-                        <div className="flex flex-col gap-2 pt-2">
+                        {/* Tampilkan item pesanan */}
+                        <div className="flex flex-col gap-3">
                             {selectedItem.filter(item => item.countItem > 0).map((item, index) => (
                                 <DetailKeranjang
                                     key={index}
@@ -129,32 +83,58 @@ const ConfirmOrderPelanggan = () => {
                                     setSelectedItem={setSelectedItem}
                                     id={item.id_produk}
                                 />
-
                             ))}
+                            {selectedItem.filter(item => item.countItem > 0).length === 0 && (
+                                <p className="text-center text-gray-500 mt-10">
+                                    Keranjang Anda kosong. Kembali ke menu untuk memesan.
+                                </p>
+                            )}
                         </div>
                     </div>
 
-                    {/* Bagian bawah */}
-                    <div className="p-4 border-t bg-white">
-                        <div className="flex justify-between items-center mb-3">
-                            <span className="text-lg font-semibold">Total Harga:</span>
-                            <span className="text-lg font-bold text-testPrimary">
-                                Rp. {totalHarga.toLocaleString('id-ID')}
-                            </span>
+                    {/* Bagian bawah untuk total dan tombol */}
+                    {selectedItem.filter(item => item.countItem > 0).length > 0 && (
+                        <div className="p-4 border-t bg-white sticky bottom-0">
+                            {/* Tampilkan loading jika sedang fetch pajak */}
+                            {isLoadingTax ? (
+                                 <div className="text-center text-gray-500 mb-4">Menghitung total...</div>
+                            ) : (
+                                <div className="mb-4 space-y-1">
+                                    <div className="flex justify-between items-center text-gray-600">
+                                        <span>Subtotal:</span>
+                                        <span>{formatRupiah(subtotal)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-gray-600">
+                                        {/* Tampilkan persentase dari state */}
+                                        <span>Pajak ({pajakPersen}%):</span>
+                                        <span>{formatRupiah(pajakNominal)}</span>
+                                    </div>
+                                    <hr className="my-1 border-dashed"/>
+                                    <div className="flex justify-between items-center text-lg font-semibold text-gray-800 pt-1">
+                                        <span>Total Harga:</span>
+                                        <span className="text-testPrimary font-bold">
+                                            {formatRupiah(totalHargaFinal)}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                            <Link to='/payment-pelanggan'>
+                                <button
+                                    // Disable tombol jika pajak belum terload
+                                    disabled={isLoadingTax}
+                                    className={`rounded-lg px-5 py-3 shadow-md w-full font-semibold text-lg transition ${
+                                        isLoadingTax ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-testPrimary text-white hover:bg-red-700'
+                                    }`}
+                                >
+                                    Lanjut ke Pembayaran
+                                </button>
+                            </Link>
                         </div>
-                        <Link to='/payment-pelanggan'>
-                            <button
-                                // onClick={() => addOrUpdateItem(detailMenu, countItem)}
-                                className="bg-testPrimary text-white rounded-md px-5 py-2 shadow-md w-full"
-                            >
-                                Place Order
-                            </button>
-                        </Link>
-                    </div>
+                    )}
                 </div>
             </div>
         </>
     )
 }
 
-export default ConfirmOrderPelanggan
+export default ConfirmOrderPelanggan;

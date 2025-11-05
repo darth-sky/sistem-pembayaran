@@ -1,6 +1,36 @@
 const api_url = `${import.meta.env.VITE_BASE_URL}/api/v1/`
 const api_url_localhost = 'http://localhost:5000/api/v1/'
 
+
+
+export const getFnbTaxRate = async () => {
+    try {
+        // Tidak perlu token jika setting pajak ini publik
+        const response = await fetch(api_url + 'transaksi/settings/tax-fnb', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                // Tambahkan Authorization header jika endpoint memerlukan login
+            },
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            // Gunakan default 10 jika ada error, tapi log pesannya
+            console.error("Gagal mengambil pajak dari API:", data.error || response.statusText);
+            return 10.0; // Fallback default tax rate
+        }
+        // Pastikan data.taxRate ada dan merupakan angka
+        const taxRate = parseFloat(data.taxRate);
+        return !isNaN(taxRate) ? taxRate : 10.0; // Return 10 jika parsing gagal
+
+    } catch (error) {
+        console.error("Error saat mengambil persentase pajak:", error);
+        return 10.0; // Fallback default tax rate jika fetch gagal
+    }
+};
+
+
+
 export const getMenu = async () => {
     try {
         const response = await fetch(api_url + `produk/read`)

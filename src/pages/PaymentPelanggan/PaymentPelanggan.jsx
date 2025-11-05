@@ -1,325 +1,351 @@
-import React, { useEffect, useState } from 'react'
-import { CiSearch, CiShoppingCart } from 'react-icons/ci'
-import { Divider, Input, Drawer, FloatButton, Badge } from 'antd';
-import MenuCard from '../../components/MenuItem';
-import MenuItem from '../../components/MenuItem';
-import { getMenu } from '../../services/api';
-import DetailAddMenu from '../../components/Detail_AddMenu';
-import DetailKeranjang from '../../components/DetailKeranjang';
-import { Link } from 'react-router-dom';
-import { FaChevronRight } from "react-icons/fa";
-import { FaChevronLeft } from "react-icons/fa";
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createOrder } from '../../services/api';
+import { FaChevronRight, FaChevronLeft } from "react-icons/fa";
+// Import service baru dan service lama
+import { createOrder, getFnbTaxRate } from '../../services/api'; // Pastikan path benar
+import { Spin, Alert } from 'antd'; // Import Spin dan Alert untuk loading/error
+
+// Helper format Rupiah (pindahkan ke utils jika sering dipakai)
+const formatRupiah = (number) => {
+    const num = parseFloat(number);
+    if (isNaN(num)) return 'Rp 0';
+    // Gunakan minimumFractionDigits: 0 untuk menghilangkan desimal ,00
+    return `Rp ${num.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+};
 
 const PaymentPelanggan = () => {
-
     const navigate = useNavigate();
 
-    // 2. Buat handler untuk submit pesanan
-    const handlePlaceOrder = async () => {
-        // Validasi sederhana
-        if (selectedItem.length === 0) {
-            alert("Keranjang Anda kosong.");
-            return;
-        }
-        if (!ruangan) { // State 'ruangan' digunakan untuk nama
-            alert("Silakan isi nama Anda.");
-            return;
-        }
-        if (!paymentMethod) {
-            alert("Silakan pilih metode pembayaran.");
-            return;
-        }
+    // State form
+    const [activeButtonEatType, setActiveButtonEatType] = useState(1); // 1: Dine In, 2: Takeaway
+    const [paymentMethod, setPaymentMethod] = useState("");
+    const [namaGuest, setNamaGuest] = useState("");
+    const [lokasiPemesanan, setLokasiPemesanan] = useState(""); // Default value agar select terkontrol
 
-        // 3. Siapkan data sesuai format yang akan diterima backend
-        const orderDetails = {
+    // State keranjang
+    const [selectedItem, setSelectedItem] = useState(() => {
+        try {
+            const store = localStorage.getItem('selectedItem');
+            return store ? JSON.parse(store) : [];
+        } catch (e) {
+            console.error("Gagal parse 'selectedItem' dari localStorage:", e);
+            return []; // Kembalikan array kosong jika error
+        }
+    });
+
+    // State Pajak & Loading
+    const [pajakPersen, setPajakPersen] = useState(0);
+    const [isLoadingTax, setIsLoadingTax] = useState(true);
+    const [errorTax, setErrorTax] = useState(null); // State untuk error saat fetch pajak
+
+    // Fetch Pajak saat komponen dimuat
+    useEffect(() => {
+        let isMounted = true; // Flag untuk mencegah update state jika komponen unmount
+        const fetchTax = async () => {
+            setIsLoadingTax(true);
+            setErrorTax(null); // Reset error
+            try {
+                const rate = await getFnbTaxRate();
+                if (isMounted) {
+                    setPajakPersen(rate);
+                }
+            } catch (err) {
+                if (isMounted) {
+                    setErrorTax("Gagal memuat tarif pajak. Menggunakan default 10%.");
+                    setPajakPersen(10); // Fallback jika API gagal
+                    console.error(err);
+                }
+            } finally {
+                if (isMounted) {
+                    setIsLoadingTax(false);
+                }
+            }
+        };
+        fetchTax();
+        return () => { isMounted = false; }; // Cleanup function
+    }, []); // Hanya dijalankan sekali
+
+    // --- PERHITUNGAN HARGA DENGAN PAJAK (useMemo) ---
+    const subtotal = useMemo(() =>
+        selectedItem
+            .filter(item => item.countItem > 0)
+            .reduce((acc, item) => {
+                const hargaItem = parseFloat(item.harga) || 0;
+                const jumlahItem = parseInt(item.countItem) || 0;
+                return acc + (hargaItem * jumlahItem);
+            }, 0),
+        [selectedItem]
+    );
+
+    const pajakNominal = useMemo(() =>
+        subtotal * (pajakPersen / 100),
+        [subtotal, pajakPersen]
+    );
+
+    const totalHargaFinal = useMemo(() =>
+        // Pastikan pembulatan jika diperlukan, misal ke 2 desimal
+        // Math.round((subtotal + pajakNominal) * 100) / 100
+        subtotal + pajakNominal,
+        [subtotal, pajakNominal]
+    );
+    // --- AKHIR PERHITUNGAN HARGA ---
+
+    // Handler submit
+    const handlePlaceOrder = async () => {
+        // ... (Validasi tetap sama) ...
+        const validItems = selectedItem.filter(item => item.countItem > 0);
+        if (validItems.length === 0) { alert("Keranjang kosong."); return; }
+        if (!namaGuest.trim()) { alert("Nama harus diisi."); return; }
+        if (activeButtonEatType === 1 && !lokasiPemesanan) { alert("Pilih tempat duduk."); return; }
+        if (!paymentMethod) { alert("Pilih metode pembayaran."); return; }
+
+        const orderDetailsForApi = {
             fnb_type: activeButtonEatType === 1 ? 'Dine In' : 'Takeaway',
-            nama_guest: ruangan, // state 'ruangan' berisi nama pemesan
-            lokasi_pemesanan: activeButtonEatType === 1 ? nama : null, // state 'nama' berisi lokasi/tempat
-            metode_pembayaran: paymentMethod,
-            total_harga_final: totalHarga,
-            detail_order: selectedItem
-                .filter(item => item.countItem > 0)
-                .map(item => ({
-                    id_produk: item.id_produk,
-                    nama_produk: item.nama_produk, // <-- TAMBAHKAN KEMBALI BARIS INI
-                    jumlah: item.countItem,
-                    harga_saat_order: item.harga,
-                    catatan_pesanan: item.note || null
-                }))
+            nama_guest: namaGuest.trim(),
+            lokasi_pemesanan: activeButtonEatType === 1 ? lokasiPemesanan : null,
+            metode_pembayaran: paymentMethod, // QRIS atau CASH
+            subtotal: subtotal,
+            pajak_persen: pajakPersen, // Kirim persen yang didapat dari API
+            pajak_nominal: pajakNominal,
+            total_harga_final: totalHargaFinal,
+            detail_order: validItems.map(item => ({
+                id_produk: item.id_produk,
+                jumlah: item.countItem,
+                harga_saat_order: parseFloat(item.harga) || 0,
+                catatan_pesanan: item.note || null
+            }))
         };
 
         try {
-            const result = await createOrder(orderDetails);
+            console.log('Mengirim data order:', orderDetailsForApi);
+            const result = await createOrder(orderDetailsForApi);
             console.log('Order berhasil dibuat:', result);
 
-            // TAMBAHKAN BARIS INI UNTUK MELIHAT DATA ASLI DARI SERVER
-            console.log('DATA DARI SERVER (result.datas):', result.datas);
-
-            // 4. Bersihkan keranjang di localStorage dan navigasi ke halaman sukses
-            localStorage.removeItem('selectedItem');
-            navigate('/transaksi-selesai', { state: { transactionData: result.datas } }); // Navigasi ke halaman sukses
-
+            if (result && result.datas) {
+                console.log('DATA DARI SERVER (result.datas):', result.datas);
+                localStorage.removeItem('selectedItem');
+                navigate('/transaksi-selesai', { state: { transactionData: result.datas } });
+            } else {
+                alert('Terjadi masalah saat memproses pesanan di server.');
+                console.error('Respons tidak valid dari server:', result);
+            }
         } catch (error) {
-            alert(`Terjadi kesalahan: ${error.message}`);
+            console.error("Error saat membuat pesanan:", error);
+            alert(`Gagal membuat pesanan: ${error.message || 'Tidak dapat terhubung ke server.'}`);
         }
     };
 
-
-
-    const [activeButtonEatType, setActiveButtonEatType] = useState(1);
-
-
-    const [paymentMethod, setPaymentMethod] = useState("");
-
-    const methods = [
-        { id: "QRIS", label: "QRIS" },
-        { id: "CASH", label: "Cash" },
+    // Opsi pembayaran & lokasi
+    const methods = [{ id: "QRIS", label: "QRIS" }, { id: "CASH", label: "Cash" }];
+    const lokasiOptions = [
+        { value: "ruangan meeting 01", label: "Ruangan Meeting 01" },
+        { value: "ruangan meeting 02", label: "Ruangan Meeting 02" },
+        { value: "ruangan meeting 03", label: "Ruangan Meeting 03" },
+        { value: "space monitor", label: "Space Monitor" },
+        { value: "open space", label: "Open Space" },
+        { value: "lesehan", label: "Lesehan" },
+        { value: "outdoor", label: "Outdoor" },
+        { value: "homebro", label: "Homebro" },
     ];
 
-    const [ruangan, setRuangan] = useState("");
-    const [nama, setNama] = useState("");
-    const [catatanPesanan, setCatatanPesanan] = useState("");
-
-
-    const [open, setOpen] = useState(false);
-
-    const [menu, setMenu] = useState([]);
-    const [countItem, setCountItem] = useState(0)
-    const [selectedItem, setSelectedItem] = useState(() => {
-        const store = localStorage.getItem('selectedItem');
-        return store ? JSON.parse(store) : [];
-    });
-
-    const [detailMenu, setDetailMenu] = useState({})
-
-    useEffect(() => {
-        localStorage.setItem('selectedItem', JSON.stringify(selectedItem));
-    }, [selectedItem])
-
-    const addOrUpdateItem = async (newMenu, count) => {
-        setSelectedItem((prevItems) => {
-            const existingItem = prevItems.find((item) => item.id_produk === newMenu.id_produk);
-            if (existingItem) {
-                const updatedItems = prevItems.map((item) =>
-                    item.id === newMenu.id ? { ...item, countItem: item.countItem + count } : item
-                );
-                localStorage.setItem('selectedItem', JSON.stringify(updatedItems));
-                return updatedItems;
-            } else {
-                const updatedItems = [...prevItems, { ...newMenu, countItem: count }];
-                localStorage.setItem('selectedItem', JSON.stringify(updatedItems));
-                return updatedItems;
-            }
-        })
-        onClose();
-    }
-
-    // useEffect(() => {
-    //     const fetchMenu = async () => {
-    //         try {
-    //             const data = await getMenu();
-    //             setMenu(data.datas);
-    //         } catch (error) {
-    //             console.error(error);
-    //         }
-    //     };
-    //     fetchMenu();
-    // }, [])
-
-    const showDrawer = (menu) => {
-        setDetailMenu(menu)
-        console.log({ detailMenunya: menu });
-
-        setOpen(true);
-    };
-    const onClose = () => {
-        setCountItem(0)
-        setOpen(false);
-    };
-
-    const totalHarga = selectedItem
-        .filter(item => item.countItem > 0)
-        .reduce((acc, item) => acc + (item.harga * item.countItem), 0);
-
+    // Cek apakah form valid untuk enable/disable tombol submit
+    const isFormValid = useMemo(() => {
+        const hasItems = selectedItem.filter(i => i.countItem > 0).length > 0;
+        const isNameValid = namaGuest.trim() !== '';
+        const isLocationValid = activeButtonEatType === 2 || (activeButtonEatType === 1 && lokasiPemesanan !== '');
+        const isPaymentValid = paymentMethod !== '';
+        return hasItems && isNameValid && isLocationValid && isPaymentValid && !isLoadingTax;
+    }, [selectedItem, namaGuest, activeButtonEatType, lokasiPemesanan, paymentMethod, isLoadingTax]);
 
     return (
-        <>
-            {/* <div className='bg-[#E95322] p-2 flex flex-col justify-center items-center gap-2'>
-                <h3
-                    className="text-white text-2xl sm:text-3xl md:text-4xl lg:text-5xl"
-                    style={{ fontFamily: "'Lily Script One', cursive" }}
-                >
-                    Homebro & Dapoer M.S
-                </h3>
+        // Gunakan flexbox untuk layout utama
+        <div className="flex flex-col h-screen bg-white">
+            {/* Header Tetap */}
+            <div className="px-4 pt-2 pb-3 border-b border-gray-200 sticky top-0 bg-white z-10">
+                <div className="flex items-center">
+                    <button
+                        className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition"
+                        onClick={() => navigate(-1)}
+                        aria-label="Kembali"
+                    >
+                        <FaChevronLeft className="text-gray-700 text-xl" />
+                    </button>
+                    <h1 className="text-xl font-bold text-gray-900 ml-2">
+                        Detail Pesanan & Pembayaran
+                    </h1>
+                </div>
+            </div>
 
-            </div> */}
+            {/* Konten Scrollable */}
+            <div className="flex-1 overflow-y-auto px-4 pt-4 pb-28"> {/* Beri padding bottom agar tidak tertutup tombol fixed */}
 
-            <div >
-                <div className="px-4 bg-white  h-[100vh] flex flex-col relative">
-                    <div className="flex items-center ">
+                {/* Tampilkan error jika gagal fetch pajak */}
+                {errorTax && <Alert message={errorTax} type="warning" showIcon className="mb-4"/>}
+
+                {/* Pilihan Dine In / Take Away */}
+                <div className='flex justify-evenly pb-4 border-b border-gray-100 mb-4'>
+                    {/* Dine In Button */}
+                    <div className='flex flex-col items-center space-y-2'>
+                        <img src="./img/dine-in.png" alt="Dine In" className="w-20 h-20 md:w-24 md:h-24 p-1" />
                         <button
-                            className="p-2 rounded-full hover:bg-gray-100 transition"
-                            onClick={() => window.history.back()}
+                            onClick={() => setActiveButtonEatType(1)}
+                            className={`text-sm w-32 h-9 flex items-center justify-center rounded-full shadow-md transition-colors ${activeButtonEatType === 1 ? "bg-testPrimary text-white font-semibold" : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"}`}
                         >
-                            <FaChevronLeft className="text-gray-700 text-xl" />
+                            Makan di Tempat
+                            <FaChevronRight className="ml-1 text-xs"/>
                         </button>
-                        <h1 className="text-lg font-semibold text-gray-900">
-                            Confirm Order
-                        </h1>
                     </div>
-                    <div className='flex justify-evenly pb-3'>
-                        <div className='flex flex-col items-center space-y-2'>
-                            <img
-                                src="./img/dine-in.png"
-                                alt="Homebro"
-                                className="w-[120px] h-[120px] sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 cursor-pointer rounded-full p-1"
+                    {/* Take Away Button */}
+                    <div className='flex flex-col items-center space-y-2'>
+                        <img src="./img/take-away.png" alt="Take Away" className="w-20 h-20 md:w-24 md:h-24 p-1" />
+                        <button
+                            onClick={() => setActiveButtonEatType(2)}
+                            className={`text-sm w-32 h-9 flex items-center justify-center rounded-full shadow-md transition-colors ${activeButtonEatType === 2 ? "bg-testPrimary text-white font-semibold" : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"}`}
+                        >
+                            Bawa Pulang
+                            <FaChevronRight className="ml-1 text-xs"/>
+                        </button>
+                    </div>
+                </div>
 
-                            />
-                            <button
-                                onClick={() => setActiveButtonEatType(1)}
-                                className={`text-sm w-24 h-9 flex items-center justify-center rounded-4xl shadow-md hover:scale-110 transition-transform 
-        ${activeButtonEatType === 1 ? "bg-testPrimary text-white" : "bg-white text-black border-2 border-testPrimary"}`
-                                }
-                            >
-                                Dine In <FaChevronRight />
-                            </button>
-
-                        </div>
-
-                        <div className='flex flex-col items-center space-y-2'>
-                            <img
-                                src="./img/take-away.png"
-                                alt="Take Away"
-                                className="w-[120px] h-[120px] sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 cursor-pointer rounded-md p-1"
-
-                            />
-
-                            <button
-                                onClick={() => setActiveButtonEatType(2)}
-                                className={`text-sm w-24 h-9 flex items-center justify-center rounded-4xl shadow-md hover:scale-110 transition-transform 
-        ${activeButtonEatType === 2 ? "bg-testPrimary text-white" : "bg-white text-black border-2 border-testPrimary"}`
-                                }
-                            >
-                                Take Away <FaChevronRight />
-                            </button>
-                        </div>
+                {/* Form Input */}
+                <div className="space-y-4">
+                    {/* Input Nama Pemesan */}
+                    <div>
+                        <label htmlFor="namaGuest" className="font-semibold text-gray-700 block mb-1 text-sm">Nama Pemesan*</label>
+                        <input
+                            id="namaGuest"
+                            type="text"
+                            value={namaGuest}
+                            onChange={(e) => setNamaGuest(e.target.value)}
+                            placeholder="Masukkan nama Anda"
+                            className="w-full bg-gray-50 border border-gray-300 px-3 py-2 rounded-md text-gray-700 focus:outline-none focus:ring-1 focus:ring-testPrimary text-sm"
+                            required
+                        />
                     </div>
 
-                    <div className="flex-1 overflow-y-auto max-h-[calc(100vh-320px)] pr-2">
-
+                    {/* Input Tempat (hanya jika Dine In) */}
+                    {activeButtonEatType === 1 && (
                         <div>
-                            <label className="font-bold block mb-1">Nama</label>
-                            <input
-                                type="text"
-                                value={ruangan}
-                                onChange={(e) => setRuangan(e.target.value)}
-                                className="w-full bg-[#F9F8E7] px-3 py-2 rounded-md text-gray-700"
-                            />
+                            <label htmlFor="lokasiPemesanan" className="font-semibold text-gray-700 block mb-1 text-sm">Pilih Tempat Duduk*</label>
+                            <select
+                                id="lokasiPemesanan"
+                                value={lokasiPemesanan}
+                                onChange={(e) => setLokasiPemesanan(e.target.value)}
+                                className="w-full bg-gray-50 border border-gray-300 px-3 py-2 rounded-md text-gray-700 focus:outline-none focus:ring-1 focus:ring-testPrimary appearance-none text-sm"
+                                required
+                            >
+                                <option value="" disabled>-- Pilih Lokasi --</option>
+                                {lokasiOptions.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
                         </div>
+                    )}
 
-                        {activeButtonEatType !== 2 && (
-                            <div>
-                                <label className="font-bold block mb-1">Tempat</label>
-                                <select
-                                    value={nama}
-                                    onChange={(e) => setNama(e.target.value)}
-                                    className="w-full bg-[#F9F8E7] px-3 py-2 rounded-md text-gray-700"
-                                >
-                                    <option value="">-- Pilih Tempat --</option>
-                                    <option value="ruangan meeting 01">Ruangan Meeting 01</option>
-                                    <option value="ruangan meeting 02">Ruangan Meeting 02</option>
-                                    <option value="ruangan meeting 03">Ruangan Meeting 03</option>
-                                    <option value="space monitor">Space Monitor</option>
-                                    <option value="open space">Open Space</option>
-                                    <option value="lesehan">Lesehan</option>
-                                </select>
-                            </div>
-                        )}
-
-
-
-
-                        <div className="space-y-3 pt-2">
-                            {selectedItem.filter(item => item.countItem > 0).map((item, index) => (
-                                <div
-                                    key={index}
-                                    className="bg-white p-3 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center"
-                                >
-                                    <div>
-                                        <p className="font-semibold text-gray-800 text-base">
-                                            {item.nama_produk}
-                                            <span className="ml-1 text-xs text-white bg-red-500 rounded-full px-2 py-0.5">
-                                                {item.countItem}
-                                            </span>
-                                        </p>
-                                        {item.note && (
-                                            <p className="text-sm text-gray-500 italic mt-1">
-                                                Catatan: {item.note}
+                    {/* Rincian Item Pesanan */}
+                    <div>
+                        <h2 className="text-base font-semibold text-gray-800 mb-2 pt-3 border-t border-gray-100 mt-4">Ringkasan Pesanan</h2>
+                        {selectedItem.filter(item => item.countItem > 0).length > 0 ? (
+                            <div className="space-y-3">
+                                {selectedItem.filter(item => item.countItem > 0).map((item, index) => (
+                                     <div key={index} className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 flex justify-between items-start text-sm">
+                                        <div className="flex-1 mr-2">
+                                            <p className="font-semibold text-gray-800">
+                                                {item.nama_produk}
+                                                <span className="ml-1.5 text-xs font-normal text-white bg-testPrimary rounded-full px-1.5 py-0.5 align-middle">
+                                                    x{item.countItem}
+                                                </span>
                                             </p>
-                                        )}
+                                            {item.note && (
+                                                <p className="text-xs text-gray-500 italic mt-1 pl-1">
+                                                    "{item.note}"
+                                                </p>
+                                            )}
+                                        </div>
+                                        <p className="font-medium text-gray-700 whitespace-nowrap">
+                                            {formatRupiah(parseFloat(item.harga * item.countItem) || 0)}
+                                        </p>
                                     </div>
-                                    <p className="text-lg font-bold text-gray-800">
-                                        Rp {parseInt(item.harga * item.countItem).toLocaleString('id-ID')}
-                                    </p>
+                                ))}
+                            </div>
+                        ) : (
+                             <p className="text-sm text-gray-500 italic text-center py-4">Belum ada item ditambahkan.</p>
+                        )}
+                    </div>
+
+                    {/* Rincian Total Harga */}
+                     <div className="mt-4 bg-gray-50 p-4 rounded-lg shadow-inner border border-gray-200 space-y-2">
+                         {isLoadingTax ? (
+                             <div className="text-center text-gray-500 py-4 flex items-center justify-center">
+                                 <Spin size="small" className="mr-2"/> Menghitung total...
+                             </div>
+                        ) : (
+                            <>
+                                <div className="flex justify-between items-center text-sm text-gray-700">
+                                    <span className="font-medium">Subtotal</span>
+                                    <span className="font-medium">{formatRupiah(subtotal)}</span>
                                 </div>
-                            ))}
-                        </div>
-                        <div className="mt-4 bg-gray-50 p-4 rounded-xl flex justify-between items-center shadow-inner">
-                            <span className="text-gray-700 font-medium">Total</span>
-                            <span className="text-xl font-bold text-green-600">
-                                Rp {totalHarga.toLocaleString('id-ID')}
-                            </span>
-                        </div>
+                                <div className="flex justify-between items-center text-sm text-gray-700">
+                                    <span className="font-medium">Pajak ({pajakPersen}%)</span>
+                                    <span className="font-medium">{formatRupiah(pajakNominal)}</span>
+                                </div>
+                                <hr className="my-2 border-dashed"/>
+                                <div className="flex justify-between items-center text-green-600 pt-1">
+                                    <span className="text-lg font-bold">Total Pembayaran</span>
+                                    <span className="text-lg font-bold">{formatRupiah(totalHargaFinal)}</span>
+                                </div>
+                            </>
+                        )}
+                    </div>
 
-
-                        <span className="font-semibold block mb-2 pt-1.5">Payment Method</span>
+                    {/* Pilihan Metode Pembayaran */}
+                    <div>
+                        <span className="font-semibold text-gray-700 block mb-2 pt-1.5 text-sm">Metode Pembayaran*</span>
                         <div className="space-y-2">
                             {methods.map((method) => (
                                 <label
                                     key={method.id}
-                                    className={`flex items-center justify-between p-3 rounded-lg cursor-pointer border transition
-        ${paymentMethod === method.id ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-white"}`}
+                                    className={`flex items-center justify-between p-3 rounded-lg cursor-pointer border transition ${paymentMethod === method.id ? "border-testPrimary bg-red-50 ring-1 ring-testPrimary" : "border-gray-300 bg-white hover:bg-gray-50"}`}
                                 >
-                                    <span className="text-gray-700 font-medium">{method.label}</span>
+                                    <span className={`font-medium text-sm ${paymentMethod === method.id ? 'text-testPrimary' : 'text-gray-700'}`}>{method.label}</span>
                                     <input
-                                        type="radio"
-                                        name="payment"
-                                        value={method.id}
+                                        type="radio" name="payment" value={method.id}
                                         checked={paymentMethod === method.id}
                                         onChange={() => setPaymentMethod(method.id)}
-                                        className="accent-blue-500 w-5 h-5"
+                                        className="form-radio h-4 w-4 text-testPrimary focus:ring-testPrimary"
+                                        required
                                     />
                                 </label>
                             ))}
                         </div>
-
                     </div>
-
-
-
-
-                    {/* Bagian bawah */}
-                    <div className="p-4 border-t bg-white absolute bottom-0 w-[92%]">
-                        <div className="flex justify-between items-center mb-3">
-                            <span className="text-lg font-semibold">Total Harga:</span>
-                            <span className="text-lg font-bold text-testPrimary">
-                                Rp. {totalHarga.toLocaleString('id-ID')}
-                            </span>
-                        </div>
-                        <button
-                            onClick={handlePlaceOrder} // Ganti onClick ke handler yang benar
-                            className="bg-testPrimary text-white rounded-md px-5 py-2 shadow-md w-full"
-                        >
-                            Place Order
-                        </button>
-                    </div>
-
                 </div>
             </div>
-        </>
+
+            {/* Tombol Aksi Bawah Tetap */}
+            <div className="p-4 border-t bg-white sticky bottom-0 left-0 right-0 w-full z-10">
+                <div className="flex justify-between items-center mb-3">
+                    <span className="text-base font-semibold">Total Harga:</span>
+                    <span className="text-lg font-bold text-testPrimary">
+                        {isLoadingTax ? <Spin size="small"/> : formatRupiah(totalHargaFinal)}
+                    </span>
+                </div>
+                <button
+                    onClick={handlePlaceOrder}
+                    disabled={!isFormValid} // Gunakan state isFormValid
+                    className={`w-full text-white rounded-lg px-5 py-3 shadow-md font-semibold text-base transition ${
+                        !isFormValid
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-testPrimary hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50'
+                    }`}
+                >
+                    Konfirmasi & Buat Pesanan
+                </button>
+            </div>
+        </div>
+        
     )
 }
 
-export default PaymentPelanggan
+export default PaymentPelanggan;
