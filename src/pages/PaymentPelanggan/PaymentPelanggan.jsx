@@ -191,7 +191,7 @@ const PaymentPelanggan = () => {
                             onClick={() => setActiveButtonEatType(1)}
                             className={`text-sm w-32 h-9 flex items-center justify-center rounded-full shadow-md transition-colors ${activeButtonEatType === 1 ? "bg-testPrimary text-white font-semibold" : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"}`}
                         >
-                            Makan di Tempat
+                            Dine In
                             <FaChevronRight className="ml-1 text-xs"/>
                         </button>
                     </div>
@@ -202,7 +202,7 @@ const PaymentPelanggan = () => {
                             onClick={() => setActiveButtonEatType(2)}
                             className={`text-sm w-32 h-9 flex items-center justify-center rounded-full shadow-md transition-colors ${activeButtonEatType === 2 ? "bg-testPrimary text-white font-semibold" : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"}`}
                         >
-                            Bawa Pulang
+                            Takeaway
                             <FaChevronRight className="ml-1 text-xs"/>
                         </button>
                     </div>
