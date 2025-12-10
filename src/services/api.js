@@ -1,7 +1,44 @@
 const api_url = `${import.meta.env.VITE_BASE_URL}/api/v1/`
 const api_url_localhost = 'http://localhost:5000/api/v1/'
 
+// Tambahkan function ini
+export const getActivePromos = async () => {
+    try {
+        // Backend sekarang otomatis hanya mengirimkan promo F&B atau All
+        const response = await fetch(`${api_url}transaksi/promo/list-active`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Gagal memuat promo');
+        return data.datas || []; 
+    } catch (error) {
+        console.error("Error fetching promos:", error);
+        return [];
+    }
+};
 
+export const checkPromoCode = async (code) => {
+    try {
+        // Panggil endpoint baru: /promo/check?code=XXX
+        const response = await fetch(`${api_url}transaksi/promo/check?code=${code}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                // TIDAK ADA Authorization Header di sini
+            },
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            // Lempar error agar bisa ditangkap di PaymentPelanggan.jsx
+            throw new Error(data.error || 'Kode promo tidak valid.');
+        }
+        
+        return data; // Mengembalikan object promo
+    } catch (error) {
+        console.error("Error check promo:", error);
+        throw error;
+    }
+};
 
 export const getFnbTaxRate = async () => {
     try {
