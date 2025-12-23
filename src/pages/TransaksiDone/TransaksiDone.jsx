@@ -45,7 +45,7 @@ const TransaksiDone = () => {
                 <svg className="w-20 h-20 md:w-24 md:h-24 mx-auto mb-5 text-green-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
 
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
-                    Pesanan Berhasil! 🎉
+                    Lakukan Pembayaran di Kasir!
                 </h1>
                 <p className="text-gray-600 mb-6 text-sm md:text-base">
                     Terima kasih! Silakan tunjukkan detail ini saat melakukan pembayaran di kasir.
@@ -75,7 +75,7 @@ const TransaksiDone = () => {
                                     </div>
                                     <span className="text-gray-700 font-medium whitespace-nowrap">
                                         {/* Hitung total per item */}
-                                        {formatRupiah((parseFloat(item.harga_saat_order) || 0) * (parseInt(item.jumlah) || 0))}
+                                        {formatRupiah((parseFloat(item.harga_satuan || item.harga || item.harga_saat_order) || 0) * (parseInt(item.jumlah) || 0))}
                                     </span>
                                 </div>
                             ))
